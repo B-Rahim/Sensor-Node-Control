@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block body %}
+
+    <h3>Hello, {{name}}</h3> 
+
+    <form action="/display" method="POST">
+    <input name="message" placeholder="message to display" type="text">
+    <input type="submit" value="Display">
+    </form>
+
+{% endblock %}
