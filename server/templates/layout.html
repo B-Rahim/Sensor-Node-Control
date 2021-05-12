@@ -1,13 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
-
     <head>
         <meta name="viewport" content="initial-scale=1, width=device-width">   
-        <title>Hello</title>
+        <title>ESP Controller</title>
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+        <script type="text/javascript">
+        google.charts.load('current', {packages: ['corechart', 'line']});
+        google.charts.setOnLoadCallback(drawBasic);
+        
+        function drawBasic() {
+        
+              var data = new google.visualization.DataTable();
+              data.addColumn('number', 'time');
+              data.addColumn('number', 'values');
+        
+              data.addRows({{values}});
+        
+              var options = {
+                hAxis: {
+                  title: 'Time'
+                },
+                vAxis: {
+                  title: 'Brightness'
+                }
+		}
+            var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
+
+            chart.draw(data, options);
+              };
+
+	</script>
     </head>
 
     <body>
-        {% block body %} {% endblock %}
+        {% block body %}{% endblock %}
     </body>
 
 </html>

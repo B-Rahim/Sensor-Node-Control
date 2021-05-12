@@ -1,7 +1,10 @@
 {% extends "layout.html" %}
 {% block body %}
-<h3>Your message is displayed (well not really !)</h3> <br>
-<h3>History of displqyed messages</h3>
+<h3>Your message is displayed </h3> <br>
+<form action="/" method="GET">
+    <a href="/">Back to form</a>
+</form>
+<h3>History of displayed messages</h3>
 <ul>
     {% for msg in messages %}
     <li>{{msg}}</li>

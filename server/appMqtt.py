@@ -1,39 +1,36 @@
 import threading
 import logging
-from flask import *
+from time import time, ctime
+from flask import Flask, render_template, request
 import paho.mqtt.client as mqtt
 import sqlite3
+
+
+def get_db():
+    #db = getattr(g, '_database', None)
+    #if db is None:
+    db = sqlite3.connect("database.db") 
+    return db
+
+cursor = get_db().cursor()
+cursor.execute("""
+	SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name='sensor'
+	""")
+if cursor.fetchone()[0]==0 :
+    cursor.execute("""
+        CREATE TABLE sensor (id INTEGER PRIMARY KEY AUTOINCREMENT, value INTEGER)
+        """)
+
 
 # Don't forget to change the variables for the MQTT broker!
 mqtt_username = "iocProject"
 mqtt_password = "rahimTT"
-mqtt_topic_d = "display"
-mqtt_topic_s = "sensor"
+mqtt_topic_d = "/display"
+mqtt_topic_s = "/sensor"
 mqtt_broker_ip = "127.0.0.1"
 client = mqtt.Client()
 # Set the username and password for the MQTT client
 client.username_pw_set(mqtt_username, mqtt_password)
-
-
-def get_db():
-    db = getattr(g, '_database', None)
-    if db is None:
-        #TODO change :memory: to database.db and check if table exist
-        db = g._database = sqlite3.connect(":memory:") 
-        db.getMeta
-    return db
-
-    #TODO see how to use this 
-# @app.teardown_appcontext
-# def close_connection(exception):
-#     db = getattr(g, '_database', None)
-#     if db is not None:
-#         db.close()
-
-
-def insert_val(db, val):
-    with db:
-        db.execute("INSERT INTO sensor (value) VALUES (?) ", (val,))
 
 # These functions handle what happens when the MQTT client connects
 # to the broker, and what happens then the topic receives a message
@@ -43,16 +40,17 @@ def on_connect(client, userdata, flags, rc):
     
     # Once the client has connected to the broker, subscribe to the topic
     client.subscribe(mqtt_topic_s)
-    
+
 def on_message(client, userdata, msg):
     # This function is called everytime the topic is published to.
     # If you want to check each message, and do something depending on
     # the content, the code to do this should be run in this function
-    
-    print("Topic: "+ msg.topic + "\nMessage: " + str(msg.payload))
-
-
-    
+   if msg.topic==mqtt_topic_s:  
+       # print("Topic: "+ msg.topic + "\nMessage: \n" )
+        val = int(msg.payload.decode("utf-8"))
+        db = get_db()
+        db.execute("INSERT INTO sensor (value) VALUES (?) ", (val,))
+        db.commit()
     # The message itself is stored in the msg variable
     # and details about who sent it are stored in userdata
 
@@ -66,20 +64,22 @@ client.on_message = on_message
 client.connect(mqtt_broker_ip, 1883)
 client.loop_start()
 
-
-
 app = Flask(__name__)
 
 messages = []
 
 @app.route("/")
 def index():
-    name = request.args.get("name", "world")
-    get_db()
     cursor = get_db().cursor()
-    cursor.execute("CREATE TABLE sensor (id INTEGER PRIMARY KEY AUTOINCREMENT, value INTEGER)")  
-
-    return render_template("index.html")
+    clear = request.args.get("clear")
+    if clear == "Clear":
+        cursor.execute("DROP TABLE sensor")
+        cursor.execute("""
+        CREATE TABLE sensor (id INTEGER PRIMARY KEY AUTOINCREMENT, value INTEGER)
+        """)
+    cursor.execute("SELECT * FROM sensor")
+    values = [list(val) for val in cursor.fetchall()]
+    return render_template("index.html", values= values)
 
 @app.route("/display", methods=["POST"])
 def display():
@@ -90,9 +90,8 @@ def display():
     client.publish(mqtt_topic_d, message)
     if message == "close":
         client.loop_stop(force=False)
-        get_db().close()
-        exit()
-    messages.append(f"{message} at time")
+    t = ctime(time())
+    messages.append(f"[{t[11:19]}] {message}")
     return render_template("display.html", messages = messages)
 
 if __name__ == '__main__':
